@@ -33,6 +33,12 @@ export const sendGreeting =(data)=>{
     return postRequest(path, params)
 }
 
+export const sendPing =(data)=>{
+    const path = 'webchat/sendping'
+    const params = {...data}
+    return postRequest(path, params)
+}
+
 export const updateRead =(data)=>{
     const {page_id} = app_config
     const path = 'webchat/updateread'

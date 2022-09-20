@@ -2,7 +2,7 @@ import React, { PureComponent } from "react"
 import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, FlatList, TextInput, ActivityIndicator, Platform, Linking } from "react-native"
 import Header from "../../src/components/Header"
 import Footer from "../../src/components/Footer"
-import { listConversation, } from '../apis/conversation'
+import { listConversation, sendPing } from '../apis/conversation'
 import { getMessage, sendBlock, sendMessage, upLoadFile } from '../apis/message'
 import { sendGreeting } from '../apis/conversation'
 import { app_config } from "../utils/app_config"
@@ -48,7 +48,6 @@ class ConversationDetail extends PureComponent {
         const {sender_id} = app_config.sender_data ?? {}
         const params = {conv_id, sender_id}
         const result = await sendGreeting(params)
-        console.log('result greeting', result)
     }
 
     getConversationMessages = async () => {
@@ -63,7 +62,6 @@ class ConversationDetail extends PureComponent {
         }
         this.setState({ loading: true }, async () => {
             const result = await getMessage(params)
-            console.log('message result', result)
             const data = result?.messages
             this.setState({ loading: false }, () => {
                 if (data && data?.length > 0) {
@@ -109,7 +107,6 @@ class ConversationDetail extends PureComponent {
             block_id,
         }
         const result = await sendBlock(params)
-        console.log('sendblock result', result)
     }
 
     _sendToFchat = async (message = '', image, image_type = 'base_64') => {
@@ -122,16 +119,15 @@ class ConversationDetail extends PureComponent {
         }
         if (image) {
             params.image = image
+            params.message = ''
         }
-
-
-        console.log('params send to fchat', params)
         const result = await sendMessage(params)
-        console.log('result send to fchat', result)
         const { error, data_socket, msg } = result ?? {}
         if (error == false && data_socket && data_socket.message?._id) {
             this._cacheMessageId.push(data_socket.message.m_id)
+            this.props.socket.emit(socketUtils.webchat, data_socket)
         }
+        
     }
 
     _doChatText = () => {
@@ -183,6 +179,16 @@ class ConversationDetail extends PureComponent {
         this.deselectImage()
     }
 
+    sendPingConversation=async()=>{
+        const conv = this.props.navigation.getParam('conv')
+        const conversation_id = conv?._id
+        const params = {
+            conversation_id,
+            pingtime: moment().valueOf()
+        }
+        const result = await sendPing(params)
+    }
+
     componentDidMount = () => {
         this.getConversationMessages()
         this.addSocketListener()
@@ -190,11 +196,17 @@ class ConversationDetail extends PureComponent {
         if(send_greeting){
             this.sendGreeting()
         }
+        this.sendPingConversation()
+        this.sendping_interval = setInterval(() => {
+            this.sendPingConversation()
+        }, 5*60*1000);
     }
 
     componentWillUnmount = () => {
         this.removeSocketListener()
-
+        if(this.sendping_interval){
+            clearInterval(this.sendping_interval)
+        }
     }
 
 
@@ -209,7 +221,6 @@ class ConversationDetail extends PureComponent {
     }
 
     _handleNewMessage = (newMessage) => {
-        console.log('handle new message', newMessage)
         const { page, settings } = this.props.pageData ?? {}
         let { conv } = this.state;
         if (newMessage?.conversation_id == conv._id || newMessage?.conversation?._id == conv._id) {
@@ -262,10 +273,8 @@ class ConversationDetail extends PureComponent {
                 maxFiles: 10,
             }).then(images => {
                 this.setState({ image_loading: false })
-                console.log('images picker', images)
                 if (images?.length > 0) {
                     for (let image of images) {
-                        console.log('send image', image)
                         this.sendImage(image)``
                     }
                 }
@@ -280,21 +289,18 @@ class ConversationDetail extends PureComponent {
     requestChoosePhoto = () => {
         const permission = Platform.OS == 'ios' ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA
         check(permission).then(result => {
-            console.log('permission result', result)
             if (result == RESULTS.GRANTED || result == RESULTS.LIMITED) {
                 this.choosePhoto()
             } else {
                 if (Platform.OS == 'ios') {
                     // openSettings()
                     request(permission).then(response => {
-                        console.log('permission result request', response)
                         if (response == RESULTS.GRANTED || result == RESULTS.LIMITED) {
                             this.choosePhoto()
                         }
                     })
                 } else {
                     request(permission).then(response => {
-                        console.log('permission result request', response)
                         if (response == RESULTS.GRANTED || result == RESULTS.LIMITED) {
                             this.choosePhoto()
                         }
@@ -307,21 +313,18 @@ class ConversationDetail extends PureComponent {
     requestTakePhoto = () => {
         const permission = Platform.OS == 'ios' ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA
         check(permission).then(result => {
-            console.log('permission result', result)
             if (result == RESULTS.GRANTED) {
                 this.takePhoto()
             } else {
                 if (Platform.OS == 'ios') {
                     // openSettings()
                     request(permission).then(response => {
-                        console.log('permission result request', response)
                         if (response == RESULTS.GRANTED) {
                             this.takePhoto()
                         }
                     })
                 } else {
                     request(permission).then(response => {
-                        console.log('permission result request', response)
                         if (response == RESULTS.GRANTED) {
                             this.takePhoto()
                         }
@@ -514,7 +517,6 @@ class ConversationDetail extends PureComponent {
                     user={{
                         _id: sender_id,
                     }}
-                    extraData={this.state.messages}
                     minInputToolbarHeight={75}
                     renderInputToolbar={this._renderInputChat}
                     bottomOffset={this.isNotchIphone() ? 34 : 0}

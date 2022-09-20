@@ -60,10 +60,8 @@ export const upLoadFile = async (conv_id, file) => {
         }
         const response = await fetch(url, options)
         const result = await response.json()
-        console.log('post result', result)
         return result
     } catch (error) {
-        console.log('error post request', error)
         return error
     }
 }

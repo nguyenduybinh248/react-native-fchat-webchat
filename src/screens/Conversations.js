@@ -41,7 +41,6 @@ class Conversations extends PureComponent {
             sender_id
         }
         const result = await newConversation(params)
-        console.log('result new conversation', result)
         const { error, datas, conv_id } = result ?? {}
         if (!error && datas) {
             const conv_data = { ...datas, _id: conv_id }
@@ -77,7 +76,6 @@ class Conversations extends PureComponent {
     }
 
     _handleNewMessage = (message_data) => {
-        console.log('new message websocket', message_data)
         const { conversation, message } = message_data ?? {}
         const conversations = [...this.state.conv]
         const {sender_id} = app_config.sender_data
@@ -143,7 +141,6 @@ class Conversations extends PureComponent {
         const { page, settings } = this.props.pageData ?? {}
         const users = this.props.onlineUsers ?? []
         const { conv } = this.state
-        console.log('users conversations', users)
         return <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'space-between', }]}>
             <Header />
             <View style={{ width: '100%', flex: 1, alignItems: 'center' }}>

@@ -7,7 +7,7 @@ import { withUserOnlineContext } from "../context/UserOnlineContext"
 import { colors } from '../utils/constant'
 import { createConversation } from '../apis/conversation'
 import { app_config } from "../../src/utils/app_config"
-import {storeLocalData, getLocalData} from '../utils/async_storage'
+import { storeLocalData, getLocalData } from '../utils/async_storage'
 
 
 
@@ -29,25 +29,23 @@ class Login extends PureComponent {
 
     createConversation = () => {
         const { sender_name, email, phone, loading } = this.state
-        console.log('this state', this.state)
         if (!loading) {
             this.setState({ loading: true }, async () => {
                 const params = {
                     sender_name, email, phone
                 }
                 const result = await createConversation(params)
-                console.log('result create conversation', result)
                 this.setState({ loading: false }, async () => {
                     const { datas, conv_id, error, sender_id } = result ?? {}
                     if (!error && conv_id && datas, sender_id) {
-                        this.setState({error: ''})
+                        this.setState({ error: '' })
                         app_config.sender_data = {
                             sender_name, email, phone, sender_id
                         }
-                        await storeLocalData('sender_data', {sender_name, email, phone, sender_id})
-                        this.goToConversationDetail({conv_id, sender_id, datas})
-                    }else{
-                        this.setState({error: error})
+                        await storeLocalData('sender_data', { sender_name, email, phone, sender_id })
+                        this.goToConversationDetail({ conv_id, sender_id, datas })
+                    } else {
+                        this.setState({ error: error })
                     }
                 })
             })
@@ -55,10 +53,10 @@ class Login extends PureComponent {
     }
 
     goToConversationDetail = async (data) => {
-        const {conv_id, sender_id, datas} = data ?? {}
-        const conv_data = {...datas, _id: conv_id}
+        const { conv_id, sender_id, datas } = data ?? {}
+        const conv_data = { ...datas, _id: conv_id }
         await this.props.navigation.navigate('Main')
-        this.props.navigation.navigate('ConversationDetail', {conv: conv_data})
+        this.props.navigation.navigate('ConversationDetail', { conv: conv_data })
     }
 
     renderUserOnline = (user, index) => {
@@ -66,7 +64,6 @@ class Login extends PureComponent {
     }
 
     onChangeText = (value, key) => {
-        console.log('change text', key, value)
         this.setState({ [key]: value })
     }
 
@@ -82,7 +79,7 @@ class Login extends PureComponent {
     render() {
         const { page, settings } = this.props.pageData ?? {}
         const users = this.props.onlineUsers ?? []
-        const {error} = this.state
+        const { error } = this.state
         return <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'space-between', }]}>
             <Header />
             <View style={{ width: '100%', flex: 1, alignItems: 'center' }}>
@@ -93,14 +90,12 @@ class Login extends PureComponent {
                 {this.renderInput('sender_name', 'Tên của bạn')}
                 {this.renderInput('email', 'Email của bạn')}
                 {this.renderInput('phone', 'Số điện thoại')}
-
-                {/* <TouchableOpacity style={{ width: '100%', alignItems: 'center' }} onPress={this.goToConversationDetail}> */}
-                    <TouchableOpacity style={{width:'100%', alignItems:'center'}} onPress={this.createConversation}>
+                <TouchableOpacity style={{ width: '100%', alignItems: 'center' }} onPress={this.createConversation}>
                     <View style={{ width: '90%', height: 60, backgroundColor: colors.brand_color, marginVertical: 20, borderRadius: 30, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>Bắt đầu chat</Text>
                     </View>
                 </TouchableOpacity>
-                <Text style={{ color: 'red', fontSize:12 }}>{error && error != '' ? `*${error}` : '' }</Text>
+                <Text style={{ color: 'red', fontSize: 12 }}>{error && error != '' ? `*${error}` : ''}</Text>
 
             </View>
             <Footer />

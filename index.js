@@ -1,14 +1,12 @@
 import React, { PureComponent } from 'react'
-import { createAppContainer, createSwitchNavigator, NavigationActions} from "react-navigation"
-import { createStackNavigator } from "react-navigation-stack"
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { createAppContainer, createSwitchNavigator, NavigationActions } from "react-navigation"
 import Modal from 'react-native-modal'
 
 import Login from "./src/screens/Login"
 import ConversationDetail from "./src/screens/ConversationDetail"
 import Conversations from "./src/screens/Conversations"
-import { View, Dimensions, StyleSheet, Image, TouchableOpacity } from 'react-native'
-import { colors } from './src/utils/constant'
+import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder } from 'react-native'
+import { api_urls, colors } from './src/utils/constant'
 import { app_config } from './src/utils/app_config'
 import { getPageData } from './src/apis/page'
 import { getUserOnline } from './src/apis/conversation'
@@ -21,10 +19,6 @@ import { getLocalData } from './src/utils/async_storage'
 
 
 
-
-const { width, height } = Dimensions.get('window')
-
-
 const screens = {
     Conversations,
     ConversationDetail,
@@ -32,7 +26,6 @@ const screens = {
 
 
 const Main = createSwitchNavigator(screens)
-// const Main = createStackNavigator(screens, { headerMode: "none" })
 
 
 const switch_navigator = createSwitchNavigator({
@@ -55,9 +48,31 @@ class FchatWebchat extends PureComponent {
         }
     }
 
+    animated = new Animated.ValueXY()
+
+    panResponder = PanResponder.create({
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+            return !(gestureState.dx === 0 && gestureState.dy === 0) 
+        },
+        onPanResponderMove: Animated.event(
+            [
+                null,
+                { dx: this.animated.x, dy: this.animated.y }
+            ],
+            { useNativeDriver: false }),
+        onPanResponderRelease: ()=>{
+            this.animated.flattenOffset()
+        },
+        onPanResponderGrant:()=>{
+            this.animated.setOffset({
+                x: this.animated.x._value,
+                y: this.animated.y._value,
+            })
+        }
+    })
+
     getPageData = async () => {
         const result = await getPageData()
-        console.log('result page data', result)
         const { error, page, settings } = result ?? {}
         if (!error && page && settings) {
             this.setState({ page_data: { page, settings } })
@@ -66,7 +81,6 @@ class FchatWebchat extends PureComponent {
 
     getUserOnline = async () => {
         const result = await getUserOnline()
-        console.log('result user online', result)
         const { error, user_online_list } = result ?? {}
         if (!error && user_online_list) {
             this.setState({ user_online_list })
@@ -75,37 +89,28 @@ class FchatWebchat extends PureComponent {
 
     getUserInfo = async () => {
         const sender_data = await getLocalData('sender_data')
-        console.log('get sender data', sender_data)
-        const sender_id = '628b103e0e450726a670d8f2'
         if (sender_data != null) {
             app_config.sender_data = sender_data
-            if(this.navigation_container?.dispatch){
+            if (this.navigation_container?.dispatch) {
                 this.navigation_container.dispatch(
                     NavigationActions.navigate({ routeName: 'Conversations' })
-                  );
+                );
             }
-            // this.navigation_container.navigate('Conversations')
-
         }
-
-
-        // const sender_id = '628b103e0e450726a670d8f2'
-        // if (sender_id != null) {
-        //     app_config.sender_data.sender_id = sender_id
-        // }
 
     }
 
     connectSocket = async () => {
-        const url = 'https://fchatvn-amazon.salekit.com:4033'
         try {
-            const _socket = SocketIOClient(url, { transports: ['websocket'] });
-            _socket.emit("room", this.props.pageId)
-            this.setState({
-                socket: _socket
+            const _socket = SocketIOClient(api_urls.websocket, { transports: ['websocket'] });
+            _socket.on('connect', data => {
+                _socket.emit("room", this.props.pageId)
+                this.setState({
+                    socket: _socket
+                })
             })
+            // _socket.on('disconnect', data => { console.log('socket disconnected', data) })
         } catch (err) {
-            console.log('connect socket err', err)
         }
     }
 
@@ -118,7 +123,7 @@ class FchatWebchat extends PureComponent {
     }
 
     openWebChat = () => {
-        this.setState({ is_open: true },async()=>{
+        this.setState({ is_open: true }, async () => {
             await this.getUserInfo()
         })
     }
@@ -128,14 +133,25 @@ class FchatWebchat extends PureComponent {
     }
 
     render() {
-        return <View style={[styles.fab, { ...this.props.styles }]}>
+
+        return <Animated.View
+            style={[
+                styles.fab,
+                { ...this.props.styles },
+                {
+                    transform: [
+                        { translateX: this.animated.x },
+                        { translateY: this.animated.y },
+                    ]
+                }
+            ]}
+            {...this.panResponder.panHandlers}
+        >
             <TouchableOpacity onPress={this.openWebChat}>
                 <Image source={require('./src/assets/images/message.png')} style={styles.message_img} />
             </TouchableOpacity>
             <Modal
-                // isVisible={true}
                 isVisible={this.state.is_open}
-                // onBackdropPress={this.closeWebChat}
                 coverScreen={true}
             >
                 <View style={styles.container}>
@@ -152,7 +168,7 @@ class FchatWebchat extends PureComponent {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </Animated.View>
 
     }
 }
