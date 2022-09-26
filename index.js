@@ -137,7 +137,7 @@ class FchatWebchat extends PureComponent {
         return <Animated.View
             style={[
                 styles.fab,
-                { ...this.props.styles },
+                { ...this.props.style },
                 {
                     transform: [
                         { translateX: this.animated.x },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         backgroundColor: colors.brand_color,
         position: 'absolute',
-        bottom: 10,
+        bottom: 60,
         right: 10,
     },
     message_img: {
