@@ -11,10 +11,11 @@ import { withUserOnlineContext } from "../context/UserOnlineContext"
 import { withSocketContext } from "../context/SocketContext"
 import { colors, socketUtils } from "../utils/constant"
 import moment from 'moment'
-import { GiftedChat, Bubble, } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble, LoadEarlier } from 'react-native-gifted-chat'
 import ImagePicker from 'react-native-image-crop-picker'
 import { check, PERMISSIONS, RESULTS, request } from 'react-native-permissions'
 import ActionSheet, { SheetManager } from 'react-native-actions-sheet'
+import DocumentPicker from 'react-native-document-picker'
 
 
 
@@ -42,11 +43,11 @@ class ConversationDetail extends PureComponent {
         this.paging = 1
     }
 
-    sendGreeting=async()=>{
+    sendGreeting = async () => {
         const conv = this.props.navigation.getParam('conv')
         const conv_id = conv._id
-        const {sender_id} = app_config.sender_data ?? {}
-        const params = {conv_id, sender_id}
+        const { sender_id } = app_config.sender_data ?? {}
+        const params = { conv_id, sender_id }
         const result = await sendGreeting(params)
     }
 
@@ -86,8 +87,8 @@ class ConversationDetail extends PureComponent {
                         return message_item
                     })
                     this.setState({ messages: [...this.state.messages, ...messages], })
-                }else{
-                    if(this.paging == 1){
+                } else {
+                    if (this.paging == 1) {
                         this.sendGreeting()
                     }
                     this.setState({
@@ -109,7 +110,7 @@ class ConversationDetail extends PureComponent {
         const result = await sendBlock(params)
     }
 
-    _sendToFchat = async (message = '', image, image_type = 'base_64') => {
+    _sendToFchat = async (message = '', image, attachments) => {
         let { conv } = this.state
         let params = {
             conv_id: conv._id,
@@ -121,13 +122,17 @@ class ConversationDetail extends PureComponent {
             params.image = image
             params.message = ''
         }
+        if (attachments) {
+            params.attachments = attachments
+            params.message = ''
+        }
         const result = await sendMessage(params)
         const { error, data_socket, msg } = result ?? {}
         if (error == false && data_socket && data_socket.message?._id) {
             this._cacheMessageId.push(data_socket.message.m_id)
             this.props.socket.emit(socketUtils.webchat, data_socket)
         }
-        
+
     }
 
     _doChatText = () => {
@@ -179,7 +184,7 @@ class ConversationDetail extends PureComponent {
         this.deselectImage()
     }
 
-    sendPingConversation=async()=>{
+    sendPingConversation = async () => {
         const conv = this.props.navigation.getParam('conv')
         const conversation_id = conv?._id
         const params = {
@@ -193,18 +198,18 @@ class ConversationDetail extends PureComponent {
         this.getConversationMessages()
         this.addSocketListener()
         const send_greeting = this.props.navigation.getParam('send_greeting')
-        if(send_greeting){
+        if (send_greeting) {
             this.sendGreeting()
         }
         this.sendPingConversation()
         this.sendping_interval = setInterval(() => {
             this.sendPingConversation()
-        }, 5*60*1000);
+        }, 5 * 60 * 1000);
     }
 
     componentWillUnmount = () => {
         this.removeSocketListener()
-        if(this.sendping_interval){
+        if (this.sendping_interval) {
             clearInterval(this.sendping_interval)
         }
     }
@@ -350,6 +355,49 @@ class ConversationDetail extends PureComponent {
         }, 500);
     }
 
+    selecFile = async () => {
+        const { sender_id, sender_name } = app_config.sender_data
+        const conv = this.props.navigation.getParam('conv')
+        const conv_id = conv._id
+        try {
+            this.setState({ image_loading: true })
+            const file = await DocumentPicker.pickSingle()
+            await this.closeImageActionSheet()
+            this.setState({ image_loading: false })
+            if (file?.uri?.length > 0) {
+                const result = await upLoadFile(conv_id, file)
+                const { data } = result ?? {}
+                if (data) {
+                    const { orig_name, file_size, full_path } = data ?? {}
+                    const url = full_path.replace('/www/wwwroot/', 'https://')
+                    const attachment = {
+                        name: orig_name,
+                        size: file_size,
+                        url,
+                    }
+                    let _message = {
+                        _id: Math.floor(Math.random() * 10000),
+                        text: 'Tệp đính kèm',
+                        attachments: [attachment],
+                        createdAt: moment().format(),
+                        user: {
+                            _id: sender_id,
+                            name: sender_name
+                        },
+                    }
+                    this.setState(previousState => ({
+                        messages: GiftedChat.append(previousState.messages, [_message]),
+                        messageText: ''
+                    }))
+                    this._sendToFchat('', null, attachment)
+                }
+            }
+        } catch (error) {
+            this.setState({ image_loading: false })
+            await this.closeImageActionSheet()
+        }
+    }
+
     openImageActionSheet = async () => {
         await SheetManager.show(action_sheet_id)
     }
@@ -361,6 +409,11 @@ class ConversationDetail extends PureComponent {
     renderActionSheet = () => {
         return <ActionSheet id={action_sheet_id}>
             <View style={{ width, paddingBottom: 40, alignItems: 'center', paddingTop: 30 }}>
+                <TouchableOpacity onPress={this.selecFile}>
+                    <View style={{ width, alignItems: 'center' }}>
+                        <Text style={{ marginVertical: 20, fontWeight: 'bold', fontSize: 16 }}>Chọn file</Text>
+                    </View>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={this.requestTakePhoto}>
                     <View style={{ width, alignItems: 'center' }}>
                         <Text style={{ marginVertical: 20, fontWeight: 'bold', fontSize: 16 }}>Chụp ảnh</Text>
@@ -393,12 +446,12 @@ class ConversationDetail extends PureComponent {
     }
 
     _renderInputChat = () => {
-        const { conv, expandToolChat, image_selected, image_loading } = this.state;
+        const { conv, expandToolChat, image_selected, image_loading, heightInputChat } = this.state;
         // return null
         return (
             <View style={[{ height: 75, borderTopColor: 'silver', borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: 'white', }]}>
 
-                <View style={{ height: 75, width: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, }}>
+                <View style={{ height: 75, width: '100%', flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, }}>
                     <View style={{ flex: image_selected?.path?.length > 0 ? 3 : 1, alignItems: 'center', justifyContent: 'center' }}>
                         {image_loading ? <ActivityIndicator color={colors.brand_color} size='small' />
                             // : image_selected?.path?.length > 0 ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -411,30 +464,26 @@ class ConversationDetail extends PureComponent {
 
                             // </View>
                             : <TouchableOpacity onPress={this.openImageActionSheet} hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}>
-                                <Image source={require('../assets/images/image.png')} style={{ width: 25, height: 25 }} resizeMode="contain" />
+                                <Image source={require('../assets/images/attach.png')} style={{ width: 25, height: 25, marginBottom: 5 }} resizeMode="contain" />
+                                {/* <Image source={require('../assets/images/image.png')} style={{ width: 25, height: 25 }} resizeMode="contain" /> */}
                             </TouchableOpacity>
                         }
                     </View>
 
-                    <View style={{ flex: 6, borderRadius: 50, backgroundColor: '#f5f5f5', paddingLeft: 8, paddingRight: 8, marginBottom: 5 }}>
+                    <View style={{ flex: 6, }}>
                         <TextInput
                             multiline={true}
                             ref={ref => this.chat_input = ref}
                             numberOfLines={4}
                             returnKeyType='default'
-                            style={[{ height: Math.max(38, this.state.heightInputChat), maxHeight: 60, overflow: 'hidden', padding: 15 }]}
+                            style={[{ height: 70, overflow: 'hidden', padding: 15, borderColor: 'silver', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, width: '100%' }]}
                             placeholder="Nhập tin nhắn"
                             onChangeText={this.onChangeText}
-                            // onFocus={this.onFocus}
-                            // onBlur={this._onExpandChatTool}
-                            onContentSizeChange={(event) => {
-                                if (this.state.heightInputChat < 70) this.setState({ heightInputChat: event.nativeEvent.contentSize.height })
-                            }}
                             value={this.state.messageText}
                         />
                     </View>
                     <TouchableOpacity style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', }} onPress={this.onTextSubmit}>
-                        <Image source={require('../assets/images/send.png')} style={{ marginLeft: 10 }} resizeMode="contain" />
+                        <Image source={require('../assets/images/send.png')} style={{ marginLeft: 10, marginBottom: 5, width: 30, height: 30 }} resizeMode="contain" />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -473,8 +522,17 @@ class ConversationDetail extends PureComponent {
         </TouchableOpacity>
     }
 
-    _renderTimeAndBlock = ({ currentMessage }) => {
+    renderAttachment = (item, index, text_color) => {
+        return <View key={index.toString()} >
+            <Text style={{color: text_color}}>{item.name}</Text>
+            <Text style={{color: text_color}}>{item.size}KB</Text>
+        </View>
+    }
+
+    _renderTimeAndBlock = ({ currentMessage, position, ...data }) => {
         let blocks = null
+        let attachments
+        const text_color = position == 'right' ? 'white' : 'black'
         let error_view = <View></View>
         if (currentMessage.error_text && currentMessage.error_text != '') {
             error_view = <View style={{ marginTop: 5 }}>
@@ -485,7 +543,17 @@ class ConversationDetail extends PureComponent {
             blocks = <View style={{ marginVertical: 10 }}>
                 <View style={{}}>
                     {
-                        currentMessage.blockButton.map(this.renderBlockButton)
+                        currentMessage.blockButton.map((item, index)=> this.renderBlockButton(item, index, text_color))
+                    }
+                </View>
+
+            </View>
+        }
+        if (currentMessage?.attachments?.length > 0) {
+            attachments = <View style={{ marginVertical: 10 }}>
+                <View style={{}}>
+                    {
+                        currentMessage.attachments.map((item, index)=> this.renderAttachment(item, index, text_color))
                     }
                 </View>
 
@@ -493,19 +561,23 @@ class ConversationDetail extends PureComponent {
         }
         const chat_by = currentMessage?.is_Page_Reply ? currentMessage?.chat_by?.full_name ? `${currentMessage?.chat_by?.full_name} - ` : 'Bot - ' : ''
         return <View style={{ marginBottom: 10, paddingHorizontal: 10 }}>
+            {attachments}
             {blocks}
             <Text style={{ color: 'silver', fontSize: 12 }}>{chat_by}{moment(currentMessage.createdAt).format('HH:mm')}</Text>
             {error_view}
         </View>
     }
 
-    renderBubble = (msg) => {
-        return <View style={{ width: 100, height: 100, backgroundColor: 'red' }}></View>
-        return <Bubble {...msg} />
+    renderLoadEarlier = () => {
+        const {loading} = this.state
+        return <LoadEarlier
+            label="Tải thêm tin nhắn"
+            onLoadEarlier={this.getConversationMessages}
+            isLoadingEarlier={loading}
+        />
     }
 
     render() {
-        const { page, settings } = this.props.pageData ?? {}
         const { conv } = this.state
         const { sender_id } = app_config.sender_data ?? {}
         return <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'space-between', }]}>
@@ -519,10 +591,9 @@ class ConversationDetail extends PureComponent {
                     }}
                     minInputToolbarHeight={75}
                     renderInputToolbar={this._renderInputChat}
-                    bottomOffset={this.isNotchIphone() ? 34 : 0}
-                    onLoadEarlier={this.getConversationMessages}
-                    isLoadingEarlier={this.state.conv_loading}
+                    bottomOffset={this.isNotchIphone() ? 24 : 0}
                     loadEarlier={this.state.can_load_more}
+                    renderLoadEarlier={this.renderLoadEarlier}
                 />
             </View>
             <Footer />

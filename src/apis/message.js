@@ -47,7 +47,7 @@ export const sendBlock = (data) => {
 
 export const upLoadFile = async (conv_id, file) => {
     try {
-        const url = 'https://fchat.vn/api_v1/webchat/do_upload'
+        const url = 'https://fchat.vn/api_v1/webchat/do_uploadfile'
         const formdata = new FormData()
         formdata.append('file', file)
         formdata.append('conv_id', conv_id)

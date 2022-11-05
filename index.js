@@ -52,6 +52,7 @@ class FchatWebchat extends PureComponent {
 
     panResponder = PanResponder.create({
         onMoveShouldSetPanResponder: (evt, gestureState) => {
+            return false
             return !(gestureState.dx === 0 && gestureState.dy === 0) 
         },
         onPanResponderMove: Animated.event(
@@ -152,7 +153,8 @@ class FchatWebchat extends PureComponent {
             </TouchableOpacity>
             <Modal
                 isVisible={this.state.is_open}
-                coverScreen={true}
+                // coverScreen={true}
+                style={{margin:0}}
             >
                 <View style={styles.container}>
                     <View style={[StyleSheet.absoluteFill]}>
@@ -181,9 +183,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.brand_color,
-        position: 'absolute',
-        bottom: 60,
-        right: 10,
+        // position: 'absolute',
+        // bottom: 60,
+        // right: 10,
     },
     message_img: {
         width: 30, height: 30,
