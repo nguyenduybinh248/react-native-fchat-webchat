@@ -4,6 +4,7 @@ import Header from "../components/Header"
 import Footer from "../components/Footer"
 import { withPageDataContext } from "../context/PageContext"
 import { withUserOnlineContext } from "../context/UserOnlineContext"
+import { withCustomerContext } from "../context/CustomerContext"
 import { colors } from '../utils/constant'
 import { createConversation } from '../apis/conversation'
 import { app_config } from "../../src/utils/app_config"
@@ -29,6 +30,7 @@ class Login extends PureComponent {
 
     createConversation = () => {
         const { sender_name, email, phone, loading } = this.state
+        const {customerId} = this.props
         if (!loading) {
             this.setState({ loading: true }, async () => {
                 const params = {
@@ -40,7 +42,7 @@ class Login extends PureComponent {
                     if (!error && conv_id && datas, sender_id) {
                         this.setState({ error: '' })
                         app_config.sender_data = {
-                            sender_name, email, phone, sender_id
+                            sender_name, email, phone, sender_id, customer_id: customerId,
                         }
                         await storeLocalData('sender_data', { sender_name, email, phone, sender_id })
                         this.goToConversationDetail({ conv_id, sender_id, datas })
@@ -109,4 +111,4 @@ const styles = StyleSheet.create({
 })
 
 
-export default withPageDataContext(withUserOnlineContext(Login))
+export default withPageDataContext(withUserOnlineContext(withCustomerContext(Login)))

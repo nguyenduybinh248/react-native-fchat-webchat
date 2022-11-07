@@ -11,6 +11,7 @@ import { app_config } from './src/utils/app_config'
 import { getPageData } from './src/apis/page'
 import { getUserOnline } from './src/apis/conversation'
 import { PageDataContext } from './src/context/PageContext'
+import { CustomerContext } from './src/context/CustomerContext'
 import { UserOnlineContext } from './src/context/UserOnlineContext'
 import { SocketContext } from './src/context/SocketContext'
 import SocketIOClient from 'socket.io-client/dist/socket.io'
@@ -53,7 +54,7 @@ class FchatWebchat extends PureComponent {
     panResponder = PanResponder.create({
         onMoveShouldSetPanResponder: (evt, gestureState) => {
             return false
-            return !(gestureState.dx === 0 && gestureState.dy === 0) 
+            return !(gestureState.dx === 0 && gestureState.dy === 0)
         },
         onPanResponderMove: Animated.event(
             [
@@ -61,10 +62,10 @@ class FchatWebchat extends PureComponent {
                 { dx: this.animated.x, dy: this.animated.y }
             ],
             { useNativeDriver: false }),
-        onPanResponderRelease: ()=>{
+        onPanResponderRelease: () => {
             this.animated.flattenOffset()
         },
-        onPanResponderGrant:()=>{
+        onPanResponderGrant: () => {
             this.animated.setOffset({
                 x: this.animated.x._value,
                 y: this.animated.y._value,
@@ -154,16 +155,18 @@ class FchatWebchat extends PureComponent {
             <Modal
                 isVisible={this.state.is_open}
                 // coverScreen={true}
-                style={{margin:0}}
+                style={{ margin: 0 }}
             >
                 <View style={styles.container}>
                     <View style={[StyleSheet.absoluteFill]}>
                         <SocketContext.Provider value={this.state.socket}>
                             <PageDataContext.Provider value={{ pageData: this.state.page_data, closeWebChat: this.closeWebChat }}>
                                 <UserOnlineContext.Provider value={this.state.user_online_list}>
-                                    <SwitchContainer
-                                        ref={ref => this.navigation_container = ref}
-                                    />
+                                    <CustomerContext.Provider value={this.props.customerId}>
+                                        <SwitchContainer
+                                            ref={ref => this.navigation_container = ref}
+                                        />
+                                    </CustomerContext.Provider>
                                 </UserOnlineContext.Provider>
                             </PageDataContext.Provider>
                         </SocketContext.Provider>

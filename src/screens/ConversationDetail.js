@@ -355,7 +355,7 @@ class ConversationDetail extends PureComponent {
         }, 500);
     }
 
-    selecFile = async () => {
+    selectFile = async () => {
         const { sender_id, sender_name } = app_config.sender_data
         const conv = this.props.navigation.getParam('conv')
         const conv_id = conv._id
@@ -393,6 +393,7 @@ class ConversationDetail extends PureComponent {
                 }
             }
         } catch (error) {
+            console.error('SELECT FILE ERROR: ', error)
             this.setState({ image_loading: false })
             await this.closeImageActionSheet()
         }
@@ -409,7 +410,7 @@ class ConversationDetail extends PureComponent {
     renderActionSheet = () => {
         return <ActionSheet id={action_sheet_id}>
             <View style={{ width, paddingBottom: 40, alignItems: 'center', paddingTop: 30 }}>
-                <TouchableOpacity onPress={this.selecFile}>
+                <TouchableOpacity onPress={this.selectFile}>
                     <View style={{ width, alignItems: 'center' }}>
                         <Text style={{ marginVertical: 20, fontWeight: 'bold', fontSize: 16 }}>Chọn file</Text>
                     </View>
