@@ -1,5 +1,5 @@
 import React, { PureComponent } from "react"
-import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, FlatList, TextInput, ActivityIndicator, Platform, Linking } from "react-native"
+import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, FlatList, TextInput, ActivityIndicator, Platform, Linking, TouchableWithoutFeedback } from "react-native"
 import Header from "../../src/components/Header"
 import Footer from "../../src/components/Footer"
 import { listConversation, sendPing } from '../apis/conversation'
@@ -11,11 +11,12 @@ import { withUserOnlineContext } from "../context/UserOnlineContext"
 import { withSocketContext } from "../context/SocketContext"
 import { colors, socketUtils } from "../utils/constant"
 import moment from 'moment'
-import { GiftedChat, Bubble, LoadEarlier } from 'react-native-gifted-chat'
+import { GiftedChat, Bubble, LoadEarlier, MessageImage } from 'react-native-gifted-chat'
 import ImagePicker from 'react-native-image-crop-picker'
 import { check, PERMISSIONS, RESULTS, request } from 'react-native-permissions'
 import ActionSheet, { SheetManager } from 'react-native-actions-sheet'
 import DocumentPicker from 'react-native-document-picker'
+import LightBox from 'react-native-lightbox-v2'
 
 
 
@@ -448,22 +449,12 @@ class ConversationDetail extends PureComponent {
 
     _renderInputChat = () => {
         const { conv, expandToolChat, image_selected, image_loading, heightInputChat } = this.state;
-        // return null
         return (
             <View style={[{ height: 75, borderTopColor: 'silver', borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: 'white', }]}>
 
                 <View style={{ height: 75, width: '100%', flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, }}>
                     <View style={{ flex: image_selected?.path?.length > 0 ? 3 : 1, alignItems: 'center', justifyContent: 'center' }}>
                         {image_loading ? <ActivityIndicator color={colors.brand_color} size='small' />
-                            // : image_selected?.path?.length > 0 ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                            //     <View style={{}}>
-                            //         <Image style={{width:30, height:30}} source={{ uri: image_selected.path }} />
-                            //         <View style={{ position: 'absolute', top: -5, right: -10, width: 20, height: 20, borderRadius: 10, backgroundColor: 'black', opacity: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-                            //             {/* <Icon hitSlop={{ top: 5, left: 5, bottom: 5, right: 5 }} onPress={this.deselectImage} type='evil-icon' name="close" size={20} color='white' /> */}
-                            //         </View>
-                            //     </View>
-
-                            // </View>
                             : <TouchableOpacity onPress={this.openImageActionSheet} hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}>
                                 <Image source={require('../assets/images/attach.png')} style={{ width: 25, height: 25, marginBottom: 5 }} resizeMode="contain" />
                                 {/* <Image source={require('../assets/images/image.png')} style={{ width: 25, height: 25 }} resizeMode="contain" /> */}
@@ -512,21 +503,25 @@ class ConversationDetail extends PureComponent {
             if (payload) {
                 this.sendBlock(payload)
             }
+        } else if (type == 'phone_number') {
+            Linking.openURL(`tel:${payload}`)
         }
     }
 
     renderBlockButton = (item, index) => {
-        return <TouchableOpacity key={index.toString()} onPress={() => { this.onBlockButtonPressed(item) }} >
-            <View style={{ paddingHorizontal: 10, paddingVertical: 10, backgroundColor: 'white', borderRadius: 10, marginVertical: 5 }}>
-                <Text>{item?.title}</Text>
-            </View>
-        </TouchableOpacity>
+        return <View style={{ width: '90%' }}>
+            <TouchableOpacity key={index.toString()} onPress={() => { this.onBlockButtonPressed(item) }} >
+                <View style={{ paddingHorizontal: 10, paddingVertical: 10, backgroundColor: 'white', borderRadius: 10, marginVertical: 5, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text>{item?.title}</Text>
+                </View>
+            </TouchableOpacity>
+        </View>
     }
 
     renderAttachment = (item, index, text_color) => {
         return <View key={index.toString()} >
-            <Text style={{color: text_color}}>{item.name}</Text>
-            <Text style={{color: text_color}}>{item.size}KB</Text>
+            <Text style={{ color: text_color }}>{item.name}</Text>
+            <Text style={{ color: text_color }}>{item.size}KB</Text>
         </View>
     }
 
@@ -541,10 +536,10 @@ class ConversationDetail extends PureComponent {
             </View>
         }
         if (currentMessage?.blockButton?.length > 0) {
-            blocks = <View style={{ marginVertical: 10 }}>
-                <View style={{}}>
+            blocks = <View style={{ marginVertical: 10, }}>
+                <View style={{ width: '100%', alignItems: 'center' }}>
                     {
-                        currentMessage.blockButton.map((item, index)=> this.renderBlockButton(item, index, text_color))
+                        currentMessage.blockButton.map((item, index) => this.renderBlockButton(item, index, text_color))
                     }
                 </View>
 
@@ -554,14 +549,14 @@ class ConversationDetail extends PureComponent {
             attachments = <View style={{ marginVertical: 10 }}>
                 <View style={{}}>
                     {
-                        currentMessage.attachments.map((item, index)=> this.renderAttachment(item, index, text_color))
+                        currentMessage.attachments.map((item, index) => this.renderAttachment(item, index, text_color))
                     }
                 </View>
 
             </View>
         }
         const chat_by = currentMessage?.is_Page_Reply ? currentMessage?.chat_by?.full_name ? `${currentMessage?.chat_by?.full_name} - ` : 'Bot - ' : ''
-        return <View style={{ marginBottom: 10, paddingHorizontal: 10 }}>
+        return <View style={{ marginBottom: 10, paddingHorizontal: 10, width: blocks ? '100%' : null }}>
             {attachments}
             {blocks}
             <Text style={{ color: 'silver', fontSize: 12 }}>{chat_by}{moment(currentMessage.createdAt).format('HH:mm')}</Text>
@@ -570,12 +565,78 @@ class ConversationDetail extends PureComponent {
     }
 
     renderLoadEarlier = () => {
-        const {loading} = this.state
+        const { loading } = this.state
         return <LoadEarlier
             label="Tải thêm tin nhắn"
             onLoadEarlier={this.getConversationMessages}
             isLoadingEarlier={loading}
         />
+    }
+
+    renderGalleryItem = (text_color, bg_color) => ({ item, index }) => {
+        return <View style={{ width: 200, marginLeft: 5, borderRadius: 20, backgroundColor: bg_color, borderColor: 'silver',  }}>
+            <LightBox
+                activeProps={{flex: 1,resizeMode: 'contain', width}}
+            >
+                <Image source={{ uri: item.image_url }} style={{ width: 200, height: 200, borderTopLeftRadius: 20, borderTopRightRadius: 20,resizeMode: 'cover', }} />
+            </LightBox>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: text_color, marginTop: 10, marginLeft: 10 }}>{item.title}</Text>
+            <Text style={{ color: 'silver', marginTop: 5, marginLeft: 10 }}>{item.subtitle}</Text>
+            <View style={{ flex: 1, width: 200, alignItems: 'center', marginBottom: 15, }}>
+                {item?.buttons?.length > 0 ? item.buttons.map(this.renderBlockButton) : null}
+            </View>
+        </View>
+    }
+
+    renderCustomView = (msg_props) => {
+        const { currentMessage, position } = msg_props
+        const { elements } = currentMessage ?? {}
+        const text_color = position == 'right' ? 'white' : 'black'
+        const bg_color = position == 'right' ? colors.message_right : colors.message_left
+
+        if (elements?.length > 0) {
+            return <View style={{ maxHeight: 300, paddingHorizontal: 10 }}>
+                <FlatList
+                    data={elements}
+                    renderItem={this.renderGalleryItem(text_color, bg_color)}
+                    horizontal={true}
+                    keyExtractor={(item, index) => index.toString()}
+                />
+            </View>
+        }
+        return null
+    }
+
+    renderBubble = (msg_props) => {
+        const { currentMessage, position } = msg_props
+        const { elements } = currentMessage ?? {}
+        const text_color = position == 'right' ? 'white' : 'black'
+        const bg_color = position == 'right' ? colors.message_right : colors.message_left
+        const wrapperStyle = {
+            left: {
+                backgroundColor: bg_color,
+            },
+            right: {
+                backgroundColor: bg_color,
+            },
+        }
+
+        if (elements?.length > 0) {
+            return <View style={{ paddingTop: 20, }}>
+                <FlatList
+                    style={{ maxWidth: width * 0.8 }}
+                    data={elements}
+                    renderItem={this.renderGalleryItem(text_color, bg_color)}
+                    horizontal={true}
+                    keyExtractor={(item, index) => index.toString()}
+                    showsHorizontalScrollIndicator={false}
+                />
+                <View style={{ marginTop: 5 }}>
+                    {this._renderTimeAndBlock(msg_props)}
+                </View>
+            </View>
+        }
+        return <Bubble {...msg_props} wrapperStyle={wrapperStyle} />
     }
 
     render() {
@@ -595,6 +656,8 @@ class ConversationDetail extends PureComponent {
                     bottomOffset={this.isNotchIphone() ? 24 : 0}
                     loadEarlier={this.state.can_load_more}
                     renderLoadEarlier={this.renderLoadEarlier}
+                    // renderCustomView={this.renderCustomView}
+                    renderBubble={this.renderBubble}
                 />
             </View>
             <Footer />
