@@ -100,7 +100,7 @@ class ConversationDetail extends PureComponent {
         })
     }
 
-    sendBlock = async (block_id) => {
+    doSendBlock = async (block_id) => {
         let conv_id = this.state.conv?._id
         const user_id = app_config.sender_data?.sender_id
         const params = {
@@ -111,13 +111,16 @@ class ConversationDetail extends PureComponent {
         const result = await sendBlock(params)
     }
 
-    _sendToFchat = async (message = '', image, attachments) => {
+    _sendToFchat = async (message = '', image, attachments, quick=false) => {
         let { conv } = this.state
         let params = {
             conv_id: conv._id,
             message: message && message != '' ? message : '👍',
             page_id: conv.page_id,
             m_id: Math.floor(Math.random() * 10000),
+        }
+        if(quick){
+            params.quick = true
         }
         if (image) {
             params.image = image
@@ -222,8 +225,12 @@ class ConversationDetail extends PureComponent {
     }
 
     addSocketListener = async () => {
-        this.props.socket.on(socketUtils.newMessage, this._handleNewMessage);
-        this.props.socket.on(socketUtils.receiveMessage, this._handleNewMessage);
+        this.props.socket.on(socketUtils.newMessage, (m)=>{
+            this._handleNewMessage(m)
+        });
+        this.props.socket.on(socketUtils.receiveMessage, (m)=>{
+            this._handleNewMessage(m)
+        });
     }
 
     _handleNewMessage = (newMessage) => {
@@ -497,11 +504,11 @@ class ConversationDetail extends PureComponent {
             Linking.openURL(url)
         } else if (type == 'postback') {
             if (title) {
-                this._sendToFchat(title)
+                this._sendToFchat(title, null, null, true)
                 this.appenTextMessage(title)
             }
             if (payload) {
-                this.sendBlock(payload)
+                this.doSendBlock(payload)
             }
         } else if (type == 'phone_number') {
             Linking.openURL(`tel:${payload}`)
@@ -509,8 +516,8 @@ class ConversationDetail extends PureComponent {
     }
 
     renderBlockButton = (item, index) => {
-        return <View style={{ width: '90%' }}>
-            <TouchableOpacity key={index.toString()} onPress={() => { this.onBlockButtonPressed(item) }} >
+        return <View style={{ width: '90%' }} key={index.toString()}>
+            <TouchableOpacity onPress={() => { this.onBlockButtonPressed(item) }} >
                 <View style={{ paddingHorizontal: 10, paddingVertical: 10, backgroundColor: 'white', borderRadius: 10, marginVertical: 5, alignItems: 'center', justifyContent: 'center' }}>
                     <Text>{item?.title}</Text>
                 </View>

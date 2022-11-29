@@ -4,7 +4,7 @@ import { colors } from "../utils/constant"
 import { withPageDataContext } from "../context/PageContext"
 import { withUserOnlineContext } from "../context/UserOnlineContext"
 import { withNavigation } from 'react-navigation'
-import { Header as HeaderNavigation } from 'react-navigation-stack'
+import { Header as HeaderNavigation, useHeaderHeight } from 'react-navigation-stack'
 
 
 

@@ -121,15 +121,16 @@ class Conversations extends PureComponent {
 
     renderConversationItem = ({ item }) => {
         const { avatar, updated_at, sale_name, sale_avatar, last_mess } = item
+        const { page, settings } = this.props.pageData ?? {}
         const { message } = last_mess ?? {}
         return <TouchableOpacity onPress={() => { this.goToConversationDetail(item) }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', width: width * 0.8, marginVertical: 10 }}>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <Image style={{ width: 50, height: 50, borderRadius: 25 }} source={{ uri: sale_avatar ?? 'https://fchat.vn/assets/images/logo/favicon-c.png' }} />
+                    <Image style={{ width: 50, height: 50, borderRadius: 25 }} source={{ uri: sale_avatar ?? page?.avatar }} />
                 </View>
                 <View style={{ flex: 5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <View style={{ flex: 3, marginLeft: 5 }}><Text style={{ fontWeight: 'bold', }}>{sale_name ?? 'Fchat.vn'}</Text></View>
+                        <View style={{ flex: 3, marginLeft: 5 }}><Text style={{ fontWeight: 'bold', }}>{sale_name ?? page?.name}</Text></View>
                         <View style={{ flex: 2, alignItems: 'flex-end' }}><Text style={{ fontSize: 12, color: '#5f5f5f' }}>{moment(updated_at).format('DD/MM HH:mm')}</Text></View>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
