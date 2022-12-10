@@ -5,7 +5,7 @@ import { app_config } from '../utils/app_config'
 
 export const getMessage = (data) => {
     const { page_id, sender_data } = app_config
-    const {sender_id} = sender_data ?? {}
+    const { sender_id } = sender_data ?? {}
     const path = 'webchat/getmessage'
     const params = { page_id, ...data }
     // const params = {
@@ -42,6 +42,27 @@ export const sendBlock = (data) => {
     //     "page_type": 2,
     //     "user_id": "628b103e0e450726a670d8f2"
     // }
+    return postRequest(path, params)
+}
+
+export const sendInput = (data) => {
+    const { page_id } = app_config
+    const path = 'https://fchat.vn/api_v1/webchat/sendInput'
+    const params = { page_id, ...data }
+    // const params = {
+    //     "page_id": "6368cb42225f425806097887",
+    //     "conv_id": "638abcd67c1e9a68a6582224",
+    //     "message": "", //text gửi đi
+    //     "data_userinputnext": "LocalStorage"
+
+    // }
+    return postRequest(path, params)
+}
+
+export const sendQucickReply = (data) => {
+    const { page_id } = app_config
+    const path = 'https://fchat.vn/api_v1/webchat/sendQuick'
+    const params = { page_id, ...data }
     return postRequest(path, params)
 }
 

@@ -3,13 +3,13 @@ import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, FlatList, 
 import Header from "../../src/components/Header"
 import Footer from "../../src/components/Footer"
 import { listConversation, sendPing } from '../apis/conversation'
-import { getMessage, sendBlock, sendMessage, upLoadFile } from '../apis/message'
+import { getMessage, sendBlock, sendInput, sendMessage, sendQucickReply, upLoadFile } from '../apis/message'
 import { sendGreeting } from '../apis/conversation'
 import { app_config } from "../utils/app_config"
 import { withPageDataContext } from "../context/PageContext"
 import { withUserOnlineContext } from "../context/UserOnlineContext"
 import { withSocketContext } from "../context/SocketContext"
-import { colors, socketUtils } from "../utils/constant"
+import { colors, localStorageKeys, socketUtils } from "../utils/constant"
 import moment from 'moment'
 import { GiftedChat, Bubble, LoadEarlier, MessageImage } from 'react-native-gifted-chat'
 import ImagePicker from 'react-native-image-crop-picker'
@@ -17,6 +17,7 @@ import { check, PERMISSIONS, RESULTS, request } from 'react-native-permissions'
 import ActionSheet, { SheetManager } from 'react-native-actions-sheet'
 import DocumentPicker from 'react-native-document-picker'
 import LightBox from 'react-native-lightbox-v2'
+import { getLocalData, removeLocalData, storeLocalData } from "react-native-fchat-webchat/src/utils/async_storage"
 
 
 
@@ -42,6 +43,9 @@ class ConversationDetail extends PureComponent {
         }
         this._cacheMessageId = []
         this.paging = 1
+        this.canSendInput = true
+        this.userInput = null
+        this.quickReply = null
     }
 
     sendGreeting = async () => {
@@ -101,7 +105,8 @@ class ConversationDetail extends PureComponent {
     }
 
     doSendBlock = async (block_id) => {
-        let conv_id = this.state.conv?._id
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
         const user_id = app_config.sender_data?.sender_id
         const params = {
             conv_id,
@@ -111,7 +116,32 @@ class ConversationDetail extends PureComponent {
         const result = await sendBlock(params)
     }
 
-    _sendToFchat = async (message = '', image, attachments, quick=false) => {
+    sendInput = async (message) => {
+        if (this.canSendInput && this.userInput) {
+            const data_userinputnext = this.userInput
+            this.canSendInput = false
+            const conv = this.props.navigation.getParam('conv')
+            let conv_id = conv?._id
+            const user_id = app_config.sender_data?.sender_id
+            const params = {
+                conv_id,
+                user_id,
+                message,
+                data_userinputnext,
+            }
+            const result = await sendInput(params)
+            const { error, input_data } = result ?? {}
+            const { stop_block, validate } = input_data ?? {}
+            if (!error && (stop_block == '1' || validate)) {
+                await this.deleteUserInput()
+                this.canSendInput = true
+            } else {
+                this.canSendInput = true
+            }
+        }
+    }
+
+    _sendToFchat = async (message = '', image, attachments, quick = false) => {
         let { conv } = this.state
         let params = {
             conv_id: conv._id,
@@ -119,7 +149,7 @@ class ConversationDetail extends PureComponent {
             page_id: conv.page_id,
             m_id: Math.floor(Math.random() * 10000),
         }
-        if(quick){
+        if (quick) {
             params.quick = true
         }
         if (image) {
@@ -133,16 +163,69 @@ class ConversationDetail extends PureComponent {
         const result = await sendMessage(params)
         const { error, data_socket, msg } = result ?? {}
         if (error == false && data_socket && data_socket.message?._id) {
+            this.deleteDataQuick()
             this._cacheMessageId.push(data_socket.message.m_id)
             this.props.socket.emit(socketUtils.webchat, data_socket)
         }
 
     }
 
+    getUserInput = async () => {
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        const result = await getLocalData(`${localStorageKeys.userInput}_${conv_id}`)
+        this.userInput = result
+    }
+
+    deleteUserInput = async () => {
+        this.userInput = null
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        await removeLocalData(`${localStorageKeys.userInput}_${conv_id}`)
+    }
+
+    saveUserInput = async (data) => {
+        this.userInput = data
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        await storeLocalData(`${localStorageKeys.userInput}_${conv_id}`, data)
+    }
+
+    getDataQuick = async () => {
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        const result = await getLocalData(`${localStorageKeys.quickReply}_${conv_id}`)
+        if (result) {
+            this._addQuickReplyMessage(result)
+        }
+    }
+
+    deleteDataQuick = async () => {
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+
+        // remove quick msg 
+        const msgs = [...this.state.messages]
+        const index = msgs.findIndex(e => e.data_quick)
+        if (index != -1) {
+            msgs.splice(index, 1)
+        }
+        this.setState({ messages: msgs })
+        // delete from local storage
+        await removeLocalData(`${localStorageKeys.quickReply}_${conv_id}`)
+    }
+
+    saveDataQuick = async (data) => {
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        await storeLocalData(`${localStorageKeys.quickReply}_${conv_id}`, data)
+    }
+
     _doChatText = () => {
         let { messageText } = this.state;
         this._sendToFchat(messageText)
         this.appenTextMessage(messageText)
+        this.sendInput(messageText)
 
     }
 
@@ -199,6 +282,8 @@ class ConversationDetail extends PureComponent {
     }
 
     componentDidMount = () => {
+        this.getDataQuick()
+        this.getUserInput()
         this.getConversationMessages()
         this.addSocketListener()
         const send_greeting = this.props.navigation.getParam('send_greeting')
@@ -222,21 +307,50 @@ class ConversationDetail extends PureComponent {
     removeSocketListener = () => {
         this.props.socket.off(socketUtils.newMessage, this._handleNewMessage);
         this.props.socket.off(socketUtils.receiveMessage, this._handleNewMessage);
+        this.props.socket.off(socketUtils.userInput, this._handleUserInputSocket);
+        this.props.socket.off(socketUtils.quickMessage, this._handleQuickMessageSocket);
     }
 
     addSocketListener = async () => {
-        this.props.socket.on(socketUtils.newMessage, (m)=>{
-            this._handleNewMessage(m)
-        });
-        this.props.socket.on(socketUtils.receiveMessage, (m)=>{
-            this._handleNewMessage(m)
-        });
+        this.props.socket.on(socketUtils.newMessage, this._handleNewMessage);
+        this.props.socket.on(socketUtils.receiveMessage, this._handleNewMessage);
+        this.props.socket.on(socketUtils.userInput, this._handleUserInputSocket);
+        this.props.socket.on(socketUtils.quickMessage, this._handleQuickMessageSocket);
+    }
+
+    _addQuickReplyMessage = (data_quick) => {
+        if (data_quick?.quick?.length > 0) {
+            const { sender_id, sender_name } = app_config.sender_data
+            let _message = {
+                _id: Math.floor(Math.random() * 10000),
+                text: '',
+                createdAt: moment().format(),
+                user: {
+                    _id: sender_id,
+                    name: sender_name
+                },
+                data_quick,
+            }
+            this.setState(previousState => ({
+                messages: GiftedChat.append(previousState.messages, [_message]),
+            }))
+        }
+
+    }
+
+    _handleQuickMessageSocket = (data_quick) => {
+        this._addQuickReplyMessage(data_quick)
+        this.saveDataQuick(data_quick)
+    }
+
+    _handleUserInputSocket = (msg) => {
+        this.saveUserInput(msg)
     }
 
     _handleNewMessage = (newMessage) => {
         const { page, settings } = this.props.pageData ?? {}
         let { conv } = this.state;
-        if (newMessage?.conversation_id == conv._id || newMessage?.conversation?._id == conv._id) {
+        if (newMessage?.conversation_id == conv?._id || newMessage?.conversation?._id == conv?._id) {
             if (newMessage?.conversation?.last_mess && this.init_conv) {
                 this.init_conv = { ...this.init_conv, ...newMessage.conversation }
             }
@@ -498,10 +612,41 @@ class ConversationDetail extends PureComponent {
         );
     }
 
+    _onQuickReplyPressed = (item, data_quick) => {
+        const { value, title, keyword_content_id } = item
+        const conv = this.props.navigation.getParam('conv')
+        let conv_id = conv?._id
+        const user_id = app_config.sender_data?.sender_id
+        const params = {
+            block_id: value,
+            data_quick,
+            keyword_content_id: keyword_content_id,
+            page_type: 2,
+            quick_value: title,
+            user_id,
+            conv_id,
+        }
+        this._sendQuickReply(params)
+    }
+
+
+    _sendQuickReply = async (params) => {
+        const result = await sendQucickReply(params)
+        const { error } = result ?? {}
+        if (!error) {
+            await this.deleteDataQuick()
+        }
+    }
+
     onBlockButtonPressed = (item) => {
         const { url, type, payload, title } = item
         if (type == 'web_url' && url != '') {
-            Linking.openURL(url)
+            if (url.includes('fchat.vn/form')) {
+                const conv = this.props.navigation.getParam('conv')
+                this.props.navigation.navigate('WebViewScreen', { uri: url, conv })
+            } else {
+                Linking.openURL(url)
+            }
         } else if (type == 'postback') {
             if (title) {
                 this._sendToFchat(title, null, null, true)
@@ -581,11 +726,11 @@ class ConversationDetail extends PureComponent {
     }
 
     renderGalleryItem = (text_color, bg_color) => ({ item, index }) => {
-        return <View style={{ width: 200, marginLeft: 5, borderRadius: 20, backgroundColor: bg_color, borderColor: 'silver',  }}>
+        return <View style={{ width: 200, marginLeft: 5, borderRadius: 20, backgroundColor: bg_color, borderColor: 'silver', }}>
             <LightBox
-                activeProps={{flex: 1,resizeMode: 'contain', width}}
+                activeProps={{ flex: 1, resizeMode: 'contain', width }}
             >
-                <Image source={{ uri: item.image_url }} style={{ width: 200, height: 200, borderTopLeftRadius: 20, borderTopRightRadius: 20,resizeMode: 'cover', }} />
+                <Image source={{ uri: item.image_url }} style={{ width: 200, height: 200, borderTopLeftRadius: 20, borderTopRightRadius: 20, resizeMode: 'cover', }} />
             </LightBox>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: text_color, marginTop: 10, marginLeft: 10 }}>{item.title}</Text>
             <Text style={{ color: 'silver', marginTop: 5, marginLeft: 10 }}>{item.subtitle}</Text>
@@ -614,9 +759,24 @@ class ConversationDetail extends PureComponent {
         return null
     }
 
+    _renderQuickReplyOtions = (item, data_quick) => {
+        return <TouchableOpacity onPress={() => { this._onQuickReplyPressed(item, data_quick) }}>
+            <View style={{
+                backgroundColor: 'white', marginRight: 10, borderRadius: 20, marginTop: 5,
+                shadowColor: 'black',
+                shadowOffset: { width: 0, height: 3, },
+                shadowRadius: 3.84,
+                shadowOpacity: 0.5,
+                elevation: 5
+            }}>
+                <Text style={{ paddingHorizontal: 20, paddingVertical: 10 }}>{item.title}</Text>
+            </View>
+        </TouchableOpacity>
+    }
+
     renderBubble = (msg_props) => {
         const { currentMessage, position } = msg_props
-        const { elements } = currentMessage ?? {}
+        const { elements, data_quick } = currentMessage ?? {}
         const text_color = position == 'right' ? 'white' : 'black'
         const bg_color = position == 'right' ? colors.message_right : colors.message_left
         const wrapperStyle = {
@@ -626,6 +786,12 @@ class ConversationDetail extends PureComponent {
             right: {
                 backgroundColor: bg_color,
             },
+        }
+
+        if (data_quick?.quick?.length > 0) {
+            return <View style={{ flexDirection: 'row', width: '80%', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {data_quick?.quick.map(item => { return this._renderQuickReplyOtions(item, data_quick) })}
+            </View>
         }
 
         if (elements?.length > 0) {
@@ -646,11 +812,15 @@ class ConversationDetail extends PureComponent {
         return <Bubble {...msg_props} wrapperStyle={wrapperStyle} />
     }
 
+    goBack = () => {
+        this.props.navigation.navigate('Conversations')
+    }
+
     render() {
         const { conv } = this.state
         const { sender_id } = app_config.sender_data ?? {}
         return <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'space-between', }]}>
-            <Header type='conversation_detail' />
+            <Header goBack={this.goBack} />
             <View style={{ width: '100%', flex: 1, backgroundColor: 'white' }}>
                 <GiftedChat
                     messages={this.state.messages}

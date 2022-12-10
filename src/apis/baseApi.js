@@ -13,9 +13,7 @@ export const postRequest = async (path, params = {}, type='application/json') =>
             headers,
             body: JSON.stringify(params),
         }
-        // console.log('post request', {url, params})
         const response = await fetch(url, options)
-        // console.log('post response', response)
         const result = await response.json()
         return result
     } catch (error) {

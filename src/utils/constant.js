@@ -8,10 +8,17 @@ export const colors = {
 export const socketUtils = {
     webchat: 'webchat',
     newMessage: 'new-message',
-    receiveMessage: 'receive-message'
+    receiveMessage: 'receive-message',
+    userInput: 'userinput-message',
+    quickMessage: 'quick-message',
 }
 
 export const api_urls = {
     websocket: 'https://fchatvn-amazon.salekit.com:4033',
     api: 'https://fchat-app.salekit.com:4039/api/v1/',
+}
+
+export const localStorageKeys = {
+    userInput: 'userInput',
+    quickReply: 'quickReply',
 }

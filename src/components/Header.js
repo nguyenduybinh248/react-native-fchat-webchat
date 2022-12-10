@@ -1,5 +1,5 @@
 import React, { PureComponent } from "react"
-import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, Linking } from "react-native"
+import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, Linking, Platform } from "react-native"
 import { colors } from "../utils/constant"
 import { withPageDataContext } from "../context/PageContext"
 import { withUserOnlineContext } from "../context/UserOnlineContext"
@@ -27,17 +27,18 @@ class Header extends PureComponent {
     }
 
     goBack = () => {
-
-        this.props.navigation.navigate('Conversations')
+        if(this.props){
+            this.props.goBack()
+        }
     }
 
     render() {
         const { page, settings } = this.props.pageData ?? {}
         const phone = settings?.contact_social?.phone?.url
-        const header_height = HeaderNavigation.HEIGHT + 20
+        const header_height = Platform.OS == 'ios' ? HeaderNavigation.HEIGHT + 20 : HeaderNavigation.HEIGHT
         return <View style={{width:'100%', height: header_height, justifyContent:'flex-end', backgroundColor: colors.brand_color,}}>
             <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, height: 60, borderBottomColor: 'silver', borderBottomWidth: StyleSheet.hairlineWidth }}>
-                {this.props.type == 'conversation_detail' ? <TouchableOpacity onPress={this.goBack}>
+                {this.props.goBack ? <TouchableOpacity onPress={this.goBack}>
                     <Image source={require('../assets/images/chevron-left.png')} style={{ width: 20, height: 20, borderRadius: 15, marginRight:10}} />
                 </TouchableOpacity> : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex:1 }}>

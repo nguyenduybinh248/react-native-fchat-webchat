@@ -3,6 +3,7 @@ import { createAppContainer, createSwitchNavigator, NavigationActions } from "re
 import Modal from 'react-native-modal'
 
 import Login from "./src/screens/Login"
+import WebViewScreen from "./src/screens/WebViewScreen"
 import ConversationDetail from "./src/screens/ConversationDetail"
 import Conversations from "./src/screens/Conversations"
 import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder } from 'react-native'
@@ -23,6 +24,7 @@ import { getLocalData } from './src/utils/async_storage'
 const screens = {
     Conversations,
     ConversationDetail,
+    WebViewScreen,
 };
 
 
@@ -99,7 +101,6 @@ class FchatWebchat extends PureComponent {
                 );
             }
         }
-
     }
 
     connectSocket = async () => {
@@ -194,7 +195,7 @@ const styles = StyleSheet.create({
         width: 30, height: 30,
     },
     container: {
-        backgroundColor: 'white', borderRadius: 10, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+        backgroundColor: 'white', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
     }
 })
 
