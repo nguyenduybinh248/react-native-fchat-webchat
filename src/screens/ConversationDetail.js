@@ -41,6 +41,7 @@ class ConversationDetail extends PureComponent {
             can_load_more: true,
             loading: false
         }
+        this.message_ids = []
         this._cacheMessageId = []
         this.paging = 1
         this.canSendInput = true
@@ -73,6 +74,7 @@ class ConversationDetail extends PureComponent {
                 if (data && data?.length > 0) {
                     this.paging += 1
                     let messages = data.map(m => {
+                        this.message_ids.push(m._id)
                         const message_item = {
                             ...m,
                             payload: m.payload,
@@ -100,6 +102,7 @@ class ConversationDetail extends PureComponent {
                         can_load_more: false
                     })
                 }
+                this.addSocketListener()
             })
         })
     }
@@ -285,7 +288,6 @@ class ConversationDetail extends PureComponent {
         this.getDataQuick()
         this.getUserInput()
         this.getConversationMessages()
-        this.addSocketListener()
         const send_greeting = this.props.navigation.getParam('send_greeting')
         if (send_greeting) {
             this.sendGreeting()
@@ -353,6 +355,9 @@ class ConversationDetail extends PureComponent {
         if (newMessage?.conversation_id == conv?._id || newMessage?.conversation?._id == conv?._id) {
             if (newMessage?.conversation?.last_mess && this.init_conv) {
                 this.init_conv = { ...this.init_conv, ...newMessage.conversation }
+            }
+            if (this.message_ids.includes(newMessage.message._id)) {
+                return false
             }
             if (!newMessage.message.is_Page_Reply) {
                 if (this._cacheMessageId.indexOf(newMessage.message.m_id) != -1) {
