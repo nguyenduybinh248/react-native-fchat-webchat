@@ -407,7 +407,7 @@ class ConversationDetail extends PureComponent {
                 this.setState({ image_loading: false })
                 if (images?.length > 0) {
                     for (let image of images) {
-                        this.sendImage(image)``
+                        this.sendImage(image)
                     }
                 }
             }).catch(err => {
@@ -792,6 +792,8 @@ class ConversationDetail extends PureComponent {
                 backgroundColor: bg_color,
             },
         }
+
+        if(currentMessage?.webchat_log) return null
 
         if (data_quick?.quick?.length > 0) {
             return <View style={{ flexDirection: 'row', width: '80%', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
