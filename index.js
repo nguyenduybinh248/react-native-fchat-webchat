@@ -6,7 +6,7 @@ import Login from "./src/screens/Login"
 import WebViewScreen from "./src/screens/WebViewScreen"
 import ConversationDetail from "./src/screens/ConversationDetail"
 import Conversations from "./src/screens/Conversations"
-import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder, YellowBox } from 'react-native'
 import { api_urls, colors } from './src/utils/constant'
 import { app_config } from './src/utils/app_config'
 import { getPageData } from './src/apis/page'
@@ -18,6 +18,8 @@ import { SocketContext } from './src/context/SocketContext'
 import SocketIOClient from 'socket.io-client/dist/socket.io'
 import { getLocalData } from './src/utils/async_storage'
 
+
+YellowBox.ignoreWarnings(["Deprecation in 'createStackNavigator'"])
 
 
 

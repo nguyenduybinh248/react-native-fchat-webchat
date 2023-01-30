@@ -69,6 +69,7 @@ class ConversationDetail extends PureComponent {
         }
         this.setState({ loading: true }, async () => {
             const result = await getMessage(params)
+            const {isDone, isStorage} = result ?? {}
             const data = result?.messages
             this.setState({ loading: false }, () => {
                 if (data && data?.length > 0) {
@@ -93,7 +94,11 @@ class ConversationDetail extends PureComponent {
                         }
                         return message_item
                     })
-                    this.setState({ messages: [...this.state.messages, ...messages], })
+                    let can_load_more = true
+                    if(isDone || isStorage){
+                        can_load_more = false
+                    }
+                    this.setState({ messages: [...this.state.messages, ...messages], can_load_more})
                 } else {
                     if (this.paging == 1) {
                         this.sendGreeting()
