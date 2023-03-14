@@ -1,9 +1,10 @@
 import React, { PureComponent } from "react"
-import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, TextInput } from "react-native"
+import { Dimensions, StyleSheet, TouchableOpacity, View, Text, Image, TextInput, ActivityIndicator } from "react-native"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 import { withPageDataContext } from "../context/PageContext"
 import { withUserOnlineContext } from "../context/UserOnlineContext"
+import { withCustomerContext } from "../context/CustomerContext"
 import { colors } from '../utils/constant'
 import { createConversation } from '../apis/conversation'
 import { app_config } from "../../src/utils/app_config"
@@ -28,28 +29,40 @@ class Login extends PureComponent {
     }
 
     createConversation = () => {
+        const { page, settings } = this.props.pageData ?? {}
+        const { form_field } = settings ?? {}
         const { sender_name, email, phone, loading } = this.state
-        if (!loading) {
-            this.setState({ loading: true }, async () => {
-                const params = {
-                    sender_name, email, phone
-                }
-                const result = await createConversation(params)
-                this.setState({ loading: false }, async () => {
-                    const { datas, conv_id, error, sender_id } = result ?? {}
-                    if (!error && conv_id && datas, sender_id) {
-                        this.setState({ error: '' })
-                        app_config.sender_data = {
-                            sender_name, email, phone, sender_id
-                        }
-                        await storeLocalData('sender_data', { sender_name, email, phone, sender_id })
-                        this.goToConversationDetail({ conv_id, sender_id, datas })
-                    } else {
-                        this.setState({ error: error })
+        const { customerId } = this.props
+        if (form_field?.name?.enable && form_field?.name?.required && (!sender_name || sender_name.length == 0)) {
+            this.setState({ error: 'Vui lòng nhập tên của bạn' })
+        } else if (form_field?.email?.enable && form_field?.email?.required && (!email || email.length == 0)) {
+            this.setState({ error: 'Vui lòng nhập email của bạn' })
+        } else if (form_field?.phone?.enable && form_field?.phone?.required && (!phone || phone.length == 0)) {
+            this.setState({ error: 'Vui lòng nhập số điện thoại' })
+        } else {
+            if (!loading) {
+                this.setState({ loading: true, error: '' }, async () => {
+                    const params = {
+                        sender_name, email, phone, customer_id: customerId
                     }
+                    const result = await createConversation(params)
+                    this.setState({ loading: false }, async () => {
+                        const { datas, conv_id, error, sender_id } = result ?? {}
+                        if (!error && conv_id && datas, sender_id) {
+                            this.setState({ error: '' })
+                            app_config.sender_data = {
+                                sender_name, email, phone, sender_id, customer_id: customerId,
+                            }
+                            await storeLocalData('sender_data', { sender_name, email, phone, sender_id })
+                            this.goToConversationDetail({ conv_id, sender_id, datas })
+                        } else {
+                            this.setState({ error: error })
+                        }
+                    })
                 })
-            })
+            }
         }
+
     }
 
     goToConversationDetail = async (data) => {
@@ -67,7 +80,7 @@ class Login extends PureComponent {
         this.setState({ [key]: value })
     }
 
-    renderInput = (key, placeholder) => {
+    renderInput = (key, placeholder, setting) => {
         return <TextInput
             placeholder={placeholder}
             value={this.state[key]}
@@ -78,21 +91,23 @@ class Login extends PureComponent {
 
     render() {
         const { page, settings } = this.props.pageData ?? {}
+        const { form_field } = settings ?? {}
+        const { email, name, phone } = form_field ?? {}
         const users = this.props.onlineUsers ?? []
-        const { error } = this.state
+        const { error, loading } = this.state
         return <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'space-between', }]}>
             <Header />
             <View style={{ width: '100%', flex: 1, alignItems: 'center' }}>
-                <Text style={{ textAlign: 'center', marginVertical: 20, lineHeight: 20 }}>{settings?.welcome}</Text>
+                <Text style={{ textAlign: 'center', marginVertical: 20, lineHeight: 20, paddingHorizontal: 10 }}>{settings?.welcome}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {users.map(this.renderUserOnline)}
                 </View>
-                {this.renderInput('sender_name', 'Tên của bạn')}
-                {this.renderInput('email', 'Email của bạn')}
-                {this.renderInput('phone', 'Số điện thoại')}
+                {name?.enable ? this.renderInput('sender_name', 'Tên của bạn') : null}
+                {email?.enable ? this.renderInput('email', 'Email của bạn',) : null}
+                {phone?.enable ? this.renderInput('phone', 'Số điện thoại',) : null}
                 <TouchableOpacity style={{ width: '100%', alignItems: 'center' }} onPress={this.createConversation}>
                     <View style={{ width: '90%', height: 60, backgroundColor: colors.brand_color, marginVertical: 20, borderRadius: 30, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Bắt đầu chat</Text>
+                        {loading ? <ActivityIndicator size='small' color='white' /> : <Text style={{ color: 'white', fontWeight: 'bold' }}>Bắt đầu chat</Text>}
                     </View>
                 </TouchableOpacity>
                 <Text style={{ color: 'red', fontSize: 12 }}>{error && error != '' ? `*${error}` : ''}</Text>
@@ -109,4 +124,4 @@ const styles = StyleSheet.create({
 })
 
 
-export default withPageDataContext(withUserOnlineContext(Login))
+export default withPageDataContext(withUserOnlineContext(withCustomerContext(Login)))

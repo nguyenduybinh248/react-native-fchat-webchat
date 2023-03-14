@@ -3,25 +3,30 @@ import { createAppContainer, createSwitchNavigator, NavigationActions } from "re
 import Modal from 'react-native-modal'
 
 import Login from "./src/screens/Login"
+import WebViewScreen from "./src/screens/WebViewScreen"
 import ConversationDetail from "./src/screens/ConversationDetail"
 import Conversations from "./src/screens/Conversations"
-import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder } from 'react-native'
+import { View, StyleSheet, Image, TouchableOpacity, Animated, PanResponder, YellowBox } from 'react-native'
 import { api_urls, colors } from './src/utils/constant'
 import { app_config } from './src/utils/app_config'
 import { getPageData } from './src/apis/page'
 import { getUserOnline } from './src/apis/conversation'
 import { PageDataContext } from './src/context/PageContext'
+import { CustomerContext } from './src/context/CustomerContext'
 import { UserOnlineContext } from './src/context/UserOnlineContext'
 import { SocketContext } from './src/context/SocketContext'
 import SocketIOClient from 'socket.io-client/dist/socket.io'
 import { getLocalData } from './src/utils/async_storage'
 
 
+YellowBox.ignoreWarnings(["Deprecation in 'createStackNavigator'"])
+
 
 
 const screens = {
     Conversations,
     ConversationDetail,
+    WebViewScreen,
 };
 
 
@@ -52,7 +57,8 @@ class FchatWebchat extends PureComponent {
 
     panResponder = PanResponder.create({
         onMoveShouldSetPanResponder: (evt, gestureState) => {
-            return !(gestureState.dx === 0 && gestureState.dy === 0) 
+            return false
+            return !(gestureState.dx === 0 && gestureState.dy === 0)
         },
         onPanResponderMove: Animated.event(
             [
@@ -60,10 +66,10 @@ class FchatWebchat extends PureComponent {
                 { dx: this.animated.x, dy: this.animated.y }
             ],
             { useNativeDriver: false }),
-        onPanResponderRelease: ()=>{
+        onPanResponderRelease: () => {
             this.animated.flattenOffset()
         },
-        onPanResponderGrant:()=>{
+        onPanResponderGrant: () => {
             this.animated.setOffset({
                 x: this.animated.x._value,
                 y: this.animated.y._value,
@@ -97,7 +103,6 @@ class FchatWebchat extends PureComponent {
                 );
             }
         }
-
     }
 
     connectSocket = async () => {
@@ -152,16 +157,19 @@ class FchatWebchat extends PureComponent {
             </TouchableOpacity>
             <Modal
                 isVisible={this.state.is_open}
-                coverScreen={true}
+                // coverScreen={true}
+                style={{ margin: 0 }}
             >
                 <View style={styles.container}>
                     <View style={[StyleSheet.absoluteFill]}>
                         <SocketContext.Provider value={this.state.socket}>
                             <PageDataContext.Provider value={{ pageData: this.state.page_data, closeWebChat: this.closeWebChat }}>
                                 <UserOnlineContext.Provider value={this.state.user_online_list}>
-                                    <SwitchContainer
-                                        ref={ref => this.navigation_container = ref}
-                                    />
+                                    <CustomerContext.Provider value={this.props.customerId}>
+                                        <SwitchContainer
+                                            ref={ref => this.navigation_container = ref}
+                                        />
+                                    </CustomerContext.Provider>
                                 </UserOnlineContext.Provider>
                             </PageDataContext.Provider>
                         </SocketContext.Provider>
@@ -181,15 +189,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: colors.brand_color,
-        position: 'absolute',
-        bottom: 60,
-        right: 10,
+        // position: 'absolute',
+        // bottom: 60,
+        // right: 10,
     },
     message_img: {
         width: 30, height: 30,
     },
     container: {
-        backgroundColor: 'white', borderRadius: 10, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+        backgroundColor: 'white', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
     }
 })
 

@@ -1,6 +1,7 @@
 {
   "name": "react-native-fchat-webchat",
-  "version": "1.0.0",
+  "version": "1.0.5",
+  "releaseDate": "17/01/2023",
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
